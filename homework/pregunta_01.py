@@ -71,47 +71,50 @@ def pregunta_01():
 
 
     """
-
-    import os
     import zipfile
-
     import pandas as pd
+    import os
 
+    def extract_files(zip_path, extract_to):
+        with zipfile.ZipFile(zip_path, "r") as zip_ref:
+            zip_ref.extractall(extract_to)
 
-    def create_directory(directory_name):
-        # Define the path to the files folder
-        files_folder = "files"
-        full_path = os.path.join(files_folder, directory_name)
+    def get_txt_files(directory):
+        txt_files = []
+        for root, _, files_in_dir in os.walk(directory):
+            txt_files.extend([os.path.join(root, file) for file in files_in_dir if file.endswith(".txt")])
+        return txt_files
+
+    def read_files_to_dict(files):
+        data = {"test": {"phrase":[], "target":[]}, "train": {"phrase":[], "target":[]}}
+        for file_path in files:
+            with open(file_path, "r") as file:
+                phrase = file.read()
+            target = file_path.split(os.sep)[-2]
+            data_type = "test" if "test" in file_path else "train"
+            data[data_type]["phrase"].append(phrase)
+            data[data_type]["target"].append(target)
+        return data
+
+    def save_dataframes(data, output_dir):
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
         
-        try:
-            os.makedirs(full_path)
-            print(f"Directory '{full_path}' created successfully!")
-        except FileExistsError:
-            print(f"Directory '{full_path}' already exists.")
-        except Exception as e:
-            print(f"An error occurred: {e}")
-
-    create_directory("input")
-    create_directory("output")
+        for key, value in data.items():
+            df = pd.DataFrame(value)
+            df.to_csv(os.path.join(output_dir, f"{key}_dataset.csv"), index=False)
 
 
-    # Descomprimir archivo
-    with zipfile.ZipFile("files/input.zip", "r") as zip_ref:
-        zip_ref.extractall("files/input")
+    zip_path = "files/input.zip"
+    extract_to = "files"
+    input_dir = os.path.join(extract_to, "input")
+    output_dir = os.path.join(extract_to, "output")
 
-    # Leer archivos
-    data = []
-    for root, _, files in os.walk("files/input"):
-        for file in files:
-            with open(os.path.join(root, file), "r") as f:
-                data.append({"phrase": f.read(), "target": os.path.basename(root)})
+    extract_files(zip_path, extract_to)
+    txt_files = get_txt_files(input_dir)
+    data = read_files_to_dict(txt_files)
+    save_dataframes(data, output_dir)
 
-    # Crear dataframe
-    df = pd.DataFrame(data)
 
-    # Crear archivos
-    os.makedirs("output", exist_ok=True)
-    df[df["target"].str.contains("train")].to_csv("files/output/train_dataset.csv", index=False)
-    df[df["target"].str.contains("test")].to_csv("files/output/test_dataset.csv", index=False)
 
 pregunta_01()
